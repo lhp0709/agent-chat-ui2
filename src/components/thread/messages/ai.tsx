@@ -1,12 +1,12 @@
 import { parsePartialJson } from "@langchain/core/output_parsers";
 import { useStreamContext } from "@/providers/Stream";
-import { AIMessage, Checkpoint, Message } from "@langchain/langgraph-sdk";
+import { AIMessage, ToolMessage, Checkpoint, Message } from "@langchain/langgraph-sdk";
 import { getContentString } from "../utils";
 import { BranchSwitcher, CommandBar } from "./shared";
 import { MarkdownText } from "../markdown-text";
 import { LoadExternalComponent } from "@langchain/langgraph-sdk/react-ui";
 import { cn } from "@/lib/utils";
-import { ToolCalls, ToolResult } from "./tool-calls";
+import { ToolCalls, ToolResult , ToolCallWithResultSection} from "./tool-calls";
 import { MessageContentComplex } from "@langchain/core/messages";
 import { Fragment } from "react/jsx-runtime";
 import { isAgentInboxInterruptSchema } from "@/lib/agent-inbox-interrupt";
@@ -145,7 +145,7 @@ export function AssistantMessage({
       <div className="flex flex-col gap-2">
         {isToolResult ? (
           <>
-            <ToolResult message={message} />
+            {/* <ToolResult message={message} /> */}
             <Interrupt
               interruptValue={threadInterrupt?.value}
               isLastMessage={isLastMessage}
@@ -160,7 +160,7 @@ export function AssistantMessage({
               </div>
             )}
 
-            {!hideToolCalls && (
+            {/* {!hideToolCalls && (
               <>
                 {(hasToolCalls && toolCallsHaveContents && (
                   <ToolCalls toolCalls={message.tool_calls} />
@@ -172,6 +172,27 @@ export function AssistantMessage({
                     <ToolCalls toolCalls={message.tool_calls} />
                   ))}
               </>
+            )} */}
+            {/* 渲染可折叠的工具调用 + 结果组合 */}
+            {!hideToolCalls && (hasToolCalls || hasAnthropicToolCalls) && hasToolCalls && (
+              <ToolCallWithResultSection
+                toolCalls={
+                  hasAnthropicToolCalls
+                    ? anthropicStreamedToolCalls!
+                    : message!.tool_calls!
+                }
+                toolResults={
+                  thread.messages.filter(
+                    (m): m is ToolMessage => 
+                      m.type === "tool" && 
+                      // 只取那些 tool_call_id 在当前 toolCalls 中的消息
+                      (hasAnthropicToolCalls
+                        ? anthropicStreamedToolCalls!.some(tc => tc.id === m.tool_call_id)
+                        : message!.tool_calls!.some(tc => tc.id === m.tool_call_id)
+                      )
+                  )
+                }
+              />
             )}
 
             {message && (

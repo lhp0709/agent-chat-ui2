@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, ChangeEvent } from "react";
 import { toast } from "sonner";
 import type { Base64ContentBlock } from "@langchain/core/messages";
-import { fileToContentBlock } from "@/lib/multimodal-utils";
+import { fileToContentBlock, ContentBlock } from "@/lib/multimodal-utils";
 
 export const SUPPORTED_FILE_TYPES = [
   "image/jpeg",
@@ -9,38 +9,50 @@ export const SUPPORTED_FILE_TYPES = [
   "image/gif",
   "image/webp",
   "application/pdf",
+  // 新增文档类型
+  "application/msword", // .doc
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
+  "application/vnd.ms-excel", // .xls
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
+  // 可选：添加 CSV
+  "text/csv",
 ];
 
 interface UseFileUploadOptions {
-  initialBlocks?: Base64ContentBlock[];
+  initialBlocks?: ContentBlock[];
 }
 
 export function useFileUpload({
   initialBlocks = [],
 }: UseFileUploadOptions = {}) {
   const [contentBlocks, setContentBlocks] =
-    useState<Base64ContentBlock[]>(initialBlocks);
+    useState<ContentBlock[]>(initialBlocks);
   const dropRef = useRef<HTMLDivElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const dragCounter = useRef(0);
 
-  const isDuplicate = (file: File, blocks: Base64ContentBlock[]) => {
-    if (file.type === "application/pdf") {
-      return blocks.some(
-        (b) =>
-          b.type === "file" &&
-          b.mime_type === "application/pdf" &&
-          b.metadata?.filename === file.name,
-      );
-    }
-    if (SUPPORTED_FILE_TYPES.includes(file.type)) {
-      return blocks.some(
-        (b) =>
-          b.type === "image" &&
-          b.metadata?.name === file.name &&
-          b.mime_type === file.type,
-      );
-    }
+  const isDuplicate = (file: File, blocks: ContentBlock[]) => {
+    // 检查是否为图片
+
+  if (SUPPORTED_FILE_TYPES.includes(file.type) && file.type.startsWith("image/")) {
+    return blocks.some(
+      (b) =>
+        b.type === "image" &&
+        b.metadata?.name === file.name &&
+        b.mime_type === file.type,
+    );
+  }
+
+  // 检查是否为文档
+
+  if (SUPPORTED_FILE_TYPES.includes(file.type) && !file.type.startsWith("image/")) {
+    return blocks.some(
+      (b) =>
+        b.type === "file" && // 文档也视为 file 类型
+        b.mime_type === file.type && // 检查 MIME 类型是否匹配
+        b.metadata?.filename === file.name, // 检查文件名
+    );
+  }
     return false;
   };
 

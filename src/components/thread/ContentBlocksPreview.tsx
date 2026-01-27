@@ -2,9 +2,10 @@ import React from "react";
 import type { Base64ContentBlock } from "@langchain/core/messages";
 import { MultimodalPreview } from "./MultimodalPreview";
 import { cn } from "@/lib/utils";
+import { ContentBlock } from "@/lib/multimodal-utils"; // Import the new type
 
 interface ContentBlocksPreviewProps {
-  blocks: Base64ContentBlock[];
+  blocks: ContentBlock[]; // Update the type here to support both base64 and url
   onRemove: (idx: number) => void;
   size?: "sm" | "md" | "lg";
   className?: string;
@@ -17,7 +18,7 @@ interface ContentBlocksPreviewProps {
 export const ContentBlocksPreview: React.FC<ContentBlocksPreviewProps> = ({
   blocks,
   onRemove,
-  size = "md",
+  size = "lg",
   className,
 }) => {
   if (!blocks.length) return null;
@@ -26,7 +27,7 @@ export const ContentBlocksPreview: React.FC<ContentBlocksPreviewProps> = ({
       {blocks.map((block, idx) => (
         <MultimodalPreview
           key={idx}
-          block={block}
+          block={block} // This will now work with both Base64ContentBlock and UrlContentBlock
           removable
           onRemove={() => onRemove(idx)}
           size={size}

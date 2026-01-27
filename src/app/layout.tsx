@@ -11,7 +11,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Agent Chat",
+  title: "开始聊天",
   description: "Agent Chat UX by LangChain",
 };
 

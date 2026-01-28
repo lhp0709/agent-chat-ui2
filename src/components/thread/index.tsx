@@ -47,6 +47,9 @@ import {
 } from "./artifact";
 import { ContentBlock } from "@/lib/multimodal-utils";
 
+import {checkAuthStatus} from "@/lib/SSO"
+import { useRouter } from 'next/navigation'
+
 function StickyToBottomContent(props: {
   content: ReactNode;
   footer?: ReactNode;
@@ -113,6 +116,7 @@ function OpenGitHubRepo() {
 }
 
 export function Thread() {
+  const router = useRouter();
   const [artifactContext, setArtifactContext] = useArtifactContext();
   const [artifactOpen, closeArtifact] = useArtifactOpen();
 
@@ -154,6 +158,17 @@ export function Thread() {
   };
 
   useEffect(() => {
+    
+    // checkAuthStatus()
+    //   .then(isLoggedIn => {
+    //      if (!isLoggedIn) {
+    //        router.push('/login'); // 如果未登录，重定向到登录页
+    //      }
+    //    })
+    //    .catch(error => {
+    //      console.error('Error checking auth status:', error);
+    //      router.push('/login');
+    //    });
     if (!stream.error) {
       lastError.current = undefined;
       return;

@@ -24,6 +24,7 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { getApiKey } from "@/lib/api-key";
 import { useThreads } from "./Thread";
 import { toast } from "sonner";
+import { env } from "process";
 
 export type StateType = { messages: Message[]; ui?: UIMessage[] };
 
@@ -152,14 +153,18 @@ export const StreamProvider: React.FC<{ children: ReactNode }> = ({
     return storedKey || "";
   });
 
+
+
   const setApiKey = (key: string) => {
     window.localStorage.setItem("lg:chat:apiKey", key);
     _setApiKey(key);
   };
 
+
   // Determine final values to use, prioritizing URL params then env vars
   const finalApiUrl = apiUrl || envApiUrl;
   const finalAssistantId = assistantId || envAssistantId;
+
 
   // Show the form if we: don't have an API URL, or don't have an assistant ID
   if (!finalApiUrl || !finalAssistantId) {

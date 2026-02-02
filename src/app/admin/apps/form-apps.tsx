@@ -25,6 +25,13 @@ interface UpdateAssistantResponse {
   message: string;
 }
 
+interface UploadResponse {
+  file_type: string;
+  filename: string;
+  url: string;
+  size: number;
+}
+
 interface FormModalProps {
   mode: 'add' | 'edit';
   assistant?: Assistant | null;
@@ -122,17 +129,49 @@ const FormModal: React.FC<FormModalProps> = ({ mode, assistant, onClose, onSave 
     return Object.keys(newErrors).length === 0;
   };
 
+  const uploadFile = async (file: File): Promise<string | null> => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`文件上传失败，状态码: ${response.status}`);
+      }
+
+      const result: UploadResponse = await response.json();
+      return result.url; // 返回文件URL
+    } catch (error) {
+      console.error('文件上传失败:', error);
+      alert('文件上传失败，请重试');
+      return null;
+    }
+  };
+
   const handleSubmit = async () => {
     if (!validateForm()) return;
 
-    // 构建 FormData 对象以发送文件
-    const dataToSend = new FormData();
-    dataToSend.append('ASSISTANT_ID', formData.ASSISTANT_ID);
-    dataToSend.append('name', formData.name);
-    dataToSend.append('description', formData.description || '');
+    let icon_url = null;
+
+    // 如果有文件需要上传，先上传文件获取URL
     if (formData.icon_file) {
-      dataToSend.append('icon_file', formData.icon_file); // 添加文件
+      icon_url = await uploadFile(formData.icon_file);
+      if (!icon_url) {
+        return; // 上传失败则直接返回
+      }
     }
+
+    // 准备发送到后端的数据（不包含文件）
+    const dataToSend = {
+      ASSISTANT_ID: formData.ASSISTANT_ID,
+      name: formData.name,
+      description: formData.description || '',
+      ...(icon_url && { icon_url }), // 如果有新的icon_url才添加
+    };
 
     try {
       let response;
@@ -141,14 +180,20 @@ const FormModal: React.FC<FormModalProps> = ({ mode, assistant, onClose, onSave 
       if (mode === 'add') {
         response = await fetch(`${API_BASE_URL}/api/admin/assistants`, {
           method: 'POST',
-          body: dataToSend, // 发送 FormData
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(dataToSend),
         });
         result = await response.json() as CreateAssistantResponse;
       } else { // edit
         if (!assistant) return; // 理论上不会发生，但作为安全检查
         response = await fetch(`${API_BASE_URL}/api/admin/assistants/${assistant.id}`, {
           method: 'PUT',
-          body: dataToSend, // 发送 FormData
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(dataToSend),
         });
         result = await response.json() as UpdateAssistantResponse;
       }

@@ -8,7 +8,7 @@ import { usePathname } from 'next/navigation'; // 导入 usePathname
 // 定义菜单项
 const menuItems = [
   { name: '用户管理', path: '/admin/users' },
-  { name: '用户权限管理', path: '/admin/permissions' },
+  { name: '角色权限管理', path: '/admin/permissions' },
   { name: '应用管理', path: '/admin/apps' },
 ];
 

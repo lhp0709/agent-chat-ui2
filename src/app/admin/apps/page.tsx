@@ -1,426 +1,484 @@
-// app/admin/apps/page.tsx
+// app/admin/permissions/page.tsx
 "use client";
+import { useState, useEffect } from 'react';
 
-import { useState, useEffect, useCallback } from 'react';
-import { Switch } from '@radix-ui/react-switch';
-import dynamic from 'next/dynamic';
+// 类型定义
+interface Role {
+  id: number;
+  name: string;
+  created_at: string;
+}
 
-// 动态导入模态框组件，避免 SSR 相关问题
-const FormModal = dynamic(() => import('./form-apps'), { ssr: false });
-
-// 定义助手类型
 interface Assistant {
   id: number;
   ASSISTANT_ID: string;
   name: string;
   description: string | null;
-  icon_url: string | null; // 存储用户上传的图片URL
-  in_use: string; // 'active', 'inactive'
-  created_at: string;
+  icon_url: string | null;
 }
 
-// 定义分页数据类型
 interface PaginationData {
   current_page: number;
   per_page: number;
   total: number;
   pages: number;
 }
-// 定义 API 响应类型
-interface GetAssistantsResponse {
-  success: boolean;
-  message?: string;
-  data: {
-    assistants: Assistant[];
-    pagination: PaginationData;
-  };
-}
 
-interface UpdateAssistantResponse {
-  success: boolean;
-  message: string;
-}
+// 复选框组件
+const Checkbox = ({ checked, onChange }: { checked: boolean; onChange: () => void }) => (
+  <button
+    onClick={onChange}
+    className={`w-6 h-6 rounded flex items-center justify-center transition-colors duration-200 ${
+      checked 
+        ? 'bg-green-500 hover:bg-green-600 text-white' 
+        : 'bg-gray-300 hover:bg-gray-400 text-transparent'
+    }`}
+  >
+    {checked && (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+      </svg>
+    )}
+  </button>
+);
 
-export default function AppsPage() {
+export default function PermissionsPage() {
+  const [roles, setRoles] = useState<Role[]>([]);
   const [assistants, setAssistants] = useState<Assistant[]>([]);
+  const [selectedRole, setSelectedRole] = useState<Role | null>(null);
+  const [authorizedApps, setAuthorizedApps] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
+  const [permissionLoading, setPermissionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Modal 状态
   const [showModal, setShowModal] = useState<'add' | 'edit' | null>(null);
-  const [editingAssistant, setEditingAssistant] = useState<Assistant | null>(null);
-
-  const [pagination, setPagination] = useState({
+  const [editingRole, setEditingRole] = useState<Role | null>(null);
+  const [roleForm, setRoleForm] = useState({ name: '' });
+  
+  // 分页状态
+  const [pagination, setPagination] = useState<PaginationData>({
     current_page: 1,
     per_page: 10,
     total: 0,
     pages: 1,
   });
 
-  // 从环境变量获取 API 基础 URL
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '';
 
-  // 获取助手列表
-  const fetchAssistants = async (page: number = 1, per_page: number = 10) => {
+  // 获取角色列表
+  const fetchRoles = async (page: number = 1) => {
     setLoading(true);
-    setError(null);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/admin/assistants?page=${page}&per_page=${per_page}`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const result: GetAssistantsResponse = await response.json();
+      const response = await fetch(`${API_BASE_URL}/api/admin/roles?page=${page}&per_page=${pagination.per_page}`);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const result = await response.json();
       if (result.success) {
-        setAssistants(result.data.assistants);
+        setRoles(result.data.roles);
         setPagination(result.data.pagination);
-      } else {
-        throw new Error(result.message || '获取助手列表失败');
       }
     } catch (err) {
-      console.error('获取助手列表失败:', err);
-      setError(err instanceof Error ? err.message : '获取助手列表失败');
-      setAssistants([]);
+      setError(err instanceof Error ? err.message : '获取角色列表失败');
     } finally {
       setLoading(false);
     }
   };
 
-  // 页面加载时获取第一页数据
-  useEffect(() => {
-    fetchAssistants(pagination.current_page, pagination.per_page);
-  }, []);
-
-  // 切换到指定页
-  const handlePageChange = (page: number) => {
-    if (page >= 1 && page <= pagination.pages) {
-      fetchAssistants(page, pagination.per_page);
+  // 获取所有应用
+  const fetchAssistants = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/assistants`);
+      if (!response.ok) throw new Error('获取应用列表失败');
+      const result = await response.json();
+      if (result.success) {
+        setAssistants(result.data.assistants);
+      }
+    } catch (err) {
+      console.error('获取应用列表失败:', err);
     }
   };
 
-  // 生成页码数组 (用于分页按钮)
-  const getPageNumbers = (): number[] => {
-    const delta = 2;
-    const range = [];
-    const rangeWithDots = [];
-
-    for (let i = Math.max(2, pagination.current_page - delta); i <= Math.min(pagination.pages - 1, pagination.current_page + delta); i++) {
-      range.push(i);
+  // 获取角色的权限
+  const fetchPermissions = async (roleId: number) => {
+    setPermissionLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/roles/${roleId}/permissions`);
+      if (!response.ok) throw new Error('获取权限失败');
+      const result = await response.json();
+      if (result.success) {
+        setAuthorizedApps(result.data.authorized_app_ids);
+      }
+    } catch (err) {
+      console.error('获取权限失败:', err);
+    } finally {
+      setPermissionLoading(false);
     }
-
-    if (pagination.pages > 1) {
-      rangeWithDots.push(1);
-      if (range[0] > 2) {
-        rangeWithDots.push(-1);
-      }
-      range.forEach(page => rangeWithDots.push(page));
-      if (range[range.length - 1] < pagination.pages - 1) {
-        rangeWithDots.push(-1);
-      }
-      if (pagination.pages > 1) {
-        rangeWithDots.push(pagination.pages);
-      }
-    } else {
-      rangeWithDots.push(1);
-    }
-
-    return rangeWithDots;
   };
 
-  const handleAddAssistant = () => {
-    setEditingAssistant(null);
+  // 切换授权状态
+  const togglePermission = async (appId: number, currentStatus: boolean) => {
+    if (!selectedRole) return;
+    
+    const url = `${API_BASE_URL}/api/admin/role_apps`;
+    const method = currentStatus ? 'DELETE' : 'POST';
+    
+    try {
+      const response = await fetch(url, {
+        method: method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          role_id: selectedRole.id,
+          app_id: appId
+        }),
+      });
+      
+      if (!response.ok) throw new Error('操作失败');
+      const result = await response.json();
+      
+      if (result.success) {
+        // 更新本地状态
+        if (currentStatus) {
+          setAuthorizedApps(prev => prev.filter(id => id !== appId));
+        } else {
+          setAuthorizedApps(prev => [...prev, appId]);
+        }
+      }
+    } catch (err) {
+      alert('操作失败，请重试');
+    }
+  };
+
+  // 选择角色
+  const handleSelectRole = (role: Role) => {
+    setSelectedRole(role);
+    fetchPermissions(role.id);
+  };
+
+  // 角色 CRUD 操作
+  const handleAddRole = () => {
+    setRoleForm({ name: '' });
+    setEditingRole(null);
     setShowModal('add');
   };
 
-  const handleEditAssistant = (assistant: Assistant) => {
-    setEditingAssistant(assistant);
+  const handleEditRole = (role: Role) => {
+    setEditingRole(role);
+    setRoleForm({ name: role.name });
     setShowModal('edit');
   };
 
-  const handleDeleteAssistant = async (assistantId: number) => {
-    if (!confirm('确定要删除此助手吗？')) return;
+  const handleSaveRole = async () => {
+    if (!roleForm.name.trim()) {
+      alert('角色名称不能为空');
+      return;
+    }
+
+    const url = showModal === 'add' 
+      ? `${API_BASE_URL}/api/admin/roles`
+      : `${API_BASE_URL}/api/admin/roles/${editingRole?.id}`;
+    
+    const method = showModal === 'add' ? 'POST' : 'PUT';
+
     try {
-      const response = await fetch(`${API_BASE_URL}/api/admin/assistants/${assistantId}`, {
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: roleForm.name.trim() }),
+      });
+      
+      const result = await response.json();
+      if (result.success) {
+        fetchRoles(pagination.current_page);
+        setShowModal(null);
+        setRoleForm({ name: '' });
+      } else {
+        alert(result.message || '操作失败');
+      }
+    } catch (err) {
+      alert('保存失败');
+    }
+  };
+
+  const handleDeleteRole = async (roleId: number) => {
+    if (!confirm('确定要删除此角色吗？')) return;
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/roles/${roleId}`, {
         method: 'DELETE',
       });
-      const result: { success: boolean; message?: string } = await response.json();
-
+      const result = await response.json();
+      
       if (result.success) {
-        // 重新获取列表以反映删除
-        fetchAssistants(pagination.current_page, pagination.per_page);
+        if (selectedRole?.id === roleId) {
+          setSelectedRole(null);
+          setAuthorizedApps([]);
+        }
+        fetchRoles(pagination.current_page);
       } else {
-        alert(result.message || '删除助手失败');
+        alert(result.message || '删除失败');
       }
     } catch (err) {
-      console.error('删除助手失败:', err);
-      alert('删除助手失败');
+      alert('删除失败');
     }
   };
 
-  // 切换助手可用状态
-  const toggleAssistantStatus = async (assistant: Assistant) => {
-    const newStatus = assistant.in_use === 'active' ? 'inactive' : 'active';
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/admin/assistants/${assistant.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ in_use: newStatus }),
-      });
-      const result: UpdateAssistantResponse = await response.json();
-      if (result.success) {
-        setAssistants(prev => prev.map(a => a.id === assistant.id ? { ...a, in_use: newStatus } : a));
-      } else {
-        alert(result.message || `切换助手状态失败`);
-      }
-    } catch (err) {
-      console.error('切换助手状态失败:', err);
-      alert('切换助手状态失败');
+  // 修复后的分页逻辑 - 避免类型混合导致的比较错误
+  const getPageNumbers = (): (number | string)[] => {
+    const pages: (number | string)[] = [];
+    const delta = 2;
+    
+    // 先生成数字范围的数组（明确为 number[] 类型）
+    const range: number[] = [];
+    const start = Math.max(2, pagination.current_page - delta);
+    const end = Math.min(pagination.pages - 1, pagination.current_page + delta);
+    
+    for (let i = start; i <= end; i++) {
+      range.push(i);
     }
+
+    // 总是显示第一页
+    pages.push(1);
+    
+    // 添加前省略号（如果范围第一个数大于2）
+    if (range.length > 0 && start > 2) {
+      pages.push('...');
+    }
+    
+    // 添加中间页码
+    range.forEach(page => pages.push(page));
+    
+    // 添加后省略号（如果范围最后一个数小于总页数-1）
+    if (range.length > 0 && end < pagination.pages - 1) {
+      pages.push('...');
+    }
+    
+    // 总是显示最后一页（如果大于1）
+    if (pagination.pages > 1) {
+      pages.push(pagination.pages);
+    }
+    
+    return pages;
   };
 
-  // 用于缓存已加载默认图标的ID，防止重复尝试
-  const [defaultIconsLoaded, setDefaultIconsLoaded] = useState<Set<number>>(new Set());
+  useEffect(() => {
+    fetchRoles();
+    fetchAssistants();
+  }, []);
 
-  // 图片错误处理函数
-  const handleImageError = useCallback((e: React.SyntheticEvent<HTMLImageElement, Event>, assistantId: number) => {
-    // 检查是否已经尝试过替换为默认图标
-    if (!defaultIconsLoaded.has(assistantId)) {
-      // 替换为默认图标
-      e.currentTarget.src = '/path/to/default-icon.svg'; // 请替换为你的实际默认图标路径
-      // 标记此助手ID的图标已加载过默认图标
-      setDefaultIconsLoaded(prev => new Set(prev).add(assistantId));
-    }
-    // 如果已经是默认图标且再次失败，则不再做任何操作，避免无限循环
-  }, [defaultIconsLoaded]); // 依赖项包括 defaultIconsLoaded
-
-
-  if (loading) {
-    return <div className="p-6">加载中...</div>;
-  }
-
-  if (error) {
-    return <div className="p-6">错误: {error}</div>;
-  }
+  if (loading) return <p className="text-gray-500">加载中...</p>;
+  if (error) return <p className="text-red-500">错误: {error}</p>;
 
   return (
-    <>
-      <div className="p-6">
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">应用管理</h1>
-        <div className="mb-6">
-          <button
-            onClick={handleAddAssistant}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium"
-          >
-            新增助手
-          </button>
+    <div className="space-y-6">
+      {/* 上方：角色管理 */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex justify-between items-center">
+            <h2 className="text-lg font-medium text-gray-900 dark:text-white">角色管理</h2>
+            <button
+              onClick={handleAddRole}
+              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium"
+            >
+              新增角色
+            </button>
+          </div>
+        </div>
+        
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-700">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">
+                  ID
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">
+                  角色名称
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">
+                  创建时间
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">
+                  操作
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
+              {roles.map((role) => (
+                <tr 
+                  key={role.id} 
+                  onClick={() => handleSelectRole(role)}
+                  className={`cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                    selectedRole?.id === role.id ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500' : ''
+                  }`}
+                >
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                    {role.id}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                    {role.name}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                    {new Date(role.created_at).toLocaleString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleEditRole(role); }}
+                      className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                    >
+                      编辑
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDeleteRole(role.id); }}
+                      className="text-red-600 hover:text-red-900 dark:text-red-500 dark:hover:text-red-400"
+                    >
+                      删除
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
 
-        {assistants.length === 0 ? (
-          <p className="text-gray-500 dark:text-gray-400">暂无助手</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-700">
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-base font-bold text-gray-500 uppercase tracking-wider dark:text-gray-300">
-                    图标
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-base font-bold text-gray-500 uppercase tracking-wider dark:text-gray-300">
-                    ASSISTANT_ID
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-base font-bold text-gray-500 uppercase tracking-wider dark:text-gray-300">
-                    名称
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-base font-bold text-gray-500 uppercase tracking-wider dark:text-gray-300 min-w-[100px]">
-                    启用
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-base font-bold text-gray-500 uppercase tracking-wider dark:text-gray-300">
-                    描述
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-base font-bold text-gray-500 uppercase tracking-wider dark:text-gray-300">
-                    创建时间
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-right text-base font-bold text-gray-500 uppercase tracking-wider dark:text-gray-300">
-                    操作
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
-                {assistants.map((assistant) => (
-                  <tr key={assistant.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {/* 直接根据 URL 显示图片 */}
-                      {assistant.icon_url ? (
-                        <img
-                          src={assistant.icon_url}
-                          alt={`${assistant.name} 图标`}
-                          className="w-12 h-12 object-contain rounded-md" // 修改这里，将 w-8 h-8 改为 w-12 h-12
-                          onError={(e) => handleImageError(e, assistant.id)}
-                        />
-                      ) : (
-                        // 如果没有 URL，则显示一个默认图标或占位符
-                        <div className="bg-gray-100 border-2 border-dashed rounded-xl w-12 h-12 flex items-center justify-center"> {/* 修改这里，将 w-8 h-8 改为 w-12 h-12 */}
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-6 h-6 text-gray-400"> {/* 修改这里的svg尺寸 w-4 h-4 -> w-6 h-6 */}
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-                          </svg>
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                      {assistant.ASSISTANT_ID}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {assistant.name}
-                    </td>
-
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      <Switch
-                        checked={assistant.in_use === 'active'}
-                        onCheckedChange={() => toggleAssistantStatus(assistant)}
-                        id={`switch-${assistant.id}`}
-                        className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                      >
-                        {/* Track (背景) - 应用 data-[state] 类 */}
-                        <span
-                          className="
-                            absolute inset-0 rounded-full bg-gray-300
-                            transition-colors duration-200 ease-in-out
-                            data-[state=checked]:bg-green-500
-                            dark:bg-gray-600 dark:data-[state=checked]:bg-green-600
-                           "
-                          data-state={assistant.in_use === 'active' ? 'checked' : 'unchecked'}
-                        ></span>
-                        {/* Thumb (滑块) - 应用 data-[state] 类 */}
-                        <span
-                          className="
-                            pointer-events-none relative block h-5 w-5 rounded-full bg-white shadow-lg ring-0
-                            transition-transform duration-200 ease-in-out
-                            data-[state=unchecked]:translate-x-0.5
-                            data-[state=checked]:translate-x-6
-                           "
-                          data-state={assistant.in_use === 'active' ? 'checked' : 'unchecked'}
-                        ></span>
-                      </Switch>
-                    </td>
-
-                    <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 max-w-xs truncate"
-                      title={assistant.description || ''}
-                    >
-                      {assistant.description ? (assistant.description.length > 50 ? `${assistant.description.substring(0, 50)}...` : assistant.description) : '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {new Date(assistant.created_at).toLocaleString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                      <button
-                        onClick={() => handleEditAssistant(assistant)}
-                        className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
-                      >
-                        编辑
-                      </button>
-                      <button
-                        onClick={() => handleDeleteAssistant(assistant.id)}
-                        className="text-red-600 hover:text-red-900 dark:text-red-500 dark:hover:text-red-400"
-                      >
-                        删除
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            {/* 分页控件 */}
-            <div className="flex items-center justify-between border-t border-gray-200 px-4 py-3 sm:px-6 mt-4 dark:border-gray-700">
-              <div className="flex flex-1 justify-between sm:hidden">
-                <button
-                  onClick={() => handlePageChange(pagination.current_page - 1)}
-                  disabled={pagination.current_page === 1}
-                  className={`relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium ${
-                    pagination.current_page === 1 ? 'text-gray-400' : 'text-gray-700 hover:bg-gray-50'
-                  } dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600`}
-                >
-                  上一页
-                </button>
-                <button
-                  onClick={() => handlePageChange(pagination.current_page + 1)}
-                  disabled={pagination.current_page === pagination.pages}
-                  className={`relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium ${
-                    pagination.current_page === pagination.pages ? 'text-gray-400' : 'text-gray-700 hover:bg-gray-50'
-                  } dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600`}
-                >
-                  下一页
-                </button>
-              </div>
-              <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm text-gray-700 dark:text-gray-300">
-                    显示 <span className="font-medium">{(pagination.current_page - 1) * pagination.per_page + 1}</span> 到{' '}
-                    <span className="font-medium">
-                      {Math.min(pagination.current_page * pagination.per_page, pagination.total)}
-                    </span>{' '}
-                    条，共 <span className="font-medium">{pagination.total}</span> 条
-                  </p>
-                </div>
-                <div>
-                  <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
-                    <button
-                      onClick={() => handlePageChange(pagination.current_page - 1)}
-                      disabled={pagination.current_page === 1}
-                      className={`relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${
-                        pagination.current_page === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:text-gray-500'
-                      } dark:ring-gray-600 dark:hover:bg-gray-600 dark:text-gray-400`}
-                    >
-                      <span className="sr-only">Previous</span>
-                      &lt;
-                    </button>
-                    {getPageNumbers().map((pageNum, index) => (
-                      <button
-                        key={index}
-                        onClick={() => pageNum > 0 && handlePageChange(pageNum)}
-                        className={`${pageNum === -1
-                          ? 'relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-700 ring-1 ring-inset ring-gray-300 focus:outline-offset-0 dark:text-gray-300 dark:ring-gray-600'
-                          : ''
-                          } ${pageNum === pagination.current_page
-                            ? 'relative z-10 inline-flex items-center bg-blue-600 px-4 py-2 text-sm font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-2-blue-600'
-                            : 'relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 dark:text-gray-200 dark:ring-gray-600 dark:hover:bg-gray-600'
-                          } ${pageNum > 0 ? '' : 'cursor-default'}`}
-                        disabled={pageNum === -1 || pageNum === pagination.current_page}
-                      >
-                        {pageNum === -1 ? '...' : pageNum}
-                      </button>
-                    ))}
-                    <button
-                      onClick={() => handlePageChange(pagination.current_page + 1)}
-                      disabled={pagination.current_page === pagination.pages}
-                      className={`relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${
-                        pagination.current_page === pagination.pages ? 'opacity-50 cursor-not-allowed' : 'hover:text-gray-500'
-                      } dark:ring-gray-600 dark:hover:bg-gray-600 dark:text-gray-400`}
-                    >
-                      <span className="sr-only">Next</span>
-                      &gt;
-                    </button>
-                  </nav>
-                </div>
-              </div>
-            </div>
+        {/* 分页 */}
+        <div className="flex items-center justify-between border-t border-gray-200 px-6 py-3 dark:border-gray-700">
+          <div className="text-sm text-gray-700 dark:text-gray-300">
+            共 <span className="font-medium">{pagination.total}</span> 条记录
           </div>
-        )}
+          <div className="flex space-x-2">
+            {getPageNumbers().map((page, idx) => (
+              <button
+                key={idx}
+                onClick={() => typeof page === 'number' && fetchRoles(page)}
+                disabled={typeof page !== 'number' || page === pagination.current_page}
+                className={`px-3 py-1 rounded-md text-sm ${
+                  page === pagination.current_page
+                    ? 'bg-blue-600 text-white'
+                    : typeof page !== 'number'
+                    ? 'text-gray-400 cursor-default'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                }`}
+              >
+                {page}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* 新增/编辑助手模态框 - 使用动态导入的组件 */}
-      {showModal && (
-        <FormModal
-          mode={showModal}
-          assistant={editingAssistant}
-          onClose={() => {
-            setShowModal(null);
-            setEditingAssistant(null);
-          }}
-          onSave={() => {
-            fetchAssistants(pagination.current_page, pagination.per_page); // 保存后刷新列表
-            setShowModal(null);
-            setEditingAssistant(null);
-          }}
-        />
+      {/* 下方：应用权限配置 */}
+      {selectedRole && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+            <h2 className="text-lg font-medium text-gray-900 dark:text-white">
+              应用权限配置 - <span className="text-blue-600 dark:text-blue-400">{selectedRole.name}</span>
+            </h2>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              点击下方复选框授权或取消授权应用
+            </p>
+          </div>
+
+          {permissionLoading ? (
+            <div className="p-6 text-center text-gray-500">加载权限中...</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-gray-700">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">
+                      ID
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">
+                      应用名称
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">
+                      ASSISTANT_ID
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">
+                      描述
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">
+                      是否授权
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
+                  {[...assistants].sort((a, b) => a.id - b.id).map((assistant) => {
+                    const isAuthorized = authorizedApps.includes(assistant.id);
+                    return (
+                      <tr key={assistant.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          {assistant.id}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                          {assistant.name}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 font-mono">
+                          {assistant.ASSISTANT_ID}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 max-w-xs truncate">
+                          {assistant.description || '-'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <Checkbox 
+                            checked={isAuthorized}
+                            onChange={() => togglePermission(assistant.id, isAuthorized)}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       )}
-    </>
+
+      {!selectedRole && (
+        <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-8 text-center border-2 border-dashed border-gray-300 dark:border-gray-700">
+          <p className="text-gray-500 dark:text-gray-400">请从上方角色列表中选择一个角色以配置权限</p>
+        </div>
+      )}
+
+      {/* 新增/编辑角色 Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-purple-200 bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full dark:bg-gray-800">
+            <div className="p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4 dark:text-white">
+                {showModal === 'add' ? '新增角色' : '编辑角色'}
+              </h3>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">
+                  角色名称 *
+                </label>
+                <input
+                  type="text"
+                  value={roleForm.name}
+                  onChange={(e) => setRoleForm({ name: e.target.value })}
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  placeholder="请输入角色名称"
+                />
+              </div>
+            </div>
+            <div className="bg-gray-50 px-6 py-4 rounded-b-lg flex justify-end space-x-3 dark:bg-gray-700">
+              <button
+                onClick={() => setShowModal(null)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleSaveRole}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md"
+              >
+                保存
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

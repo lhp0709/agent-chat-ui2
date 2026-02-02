@@ -12,11 +12,13 @@ export default function DemoPage(): React.ReactNode {
     <React.Suspense fallback={<div>Loading (layout)...</div>}>
       <Toaster />
       <ThreadProvider>
-        <StreamProvider>
-          <ArtifactProvider>
-            <Thread />
-          </ArtifactProvider>
-        </StreamProvider>
+        <div className="h-[calc(100vh-4rem)] flex flex-col overflow-hidden">
+          <StreamProvider>
+            <ArtifactProvider>
+              <Thread />
+            </ArtifactProvider>
+          </StreamProvider>
+        </div>
       </ThreadProvider>
     </React.Suspense>
   );

@@ -69,7 +69,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="pb-10 bg-white min-h-screen">
+    <div className="h-[calc(100vh-4rem)] bg-white flex flex-col overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mt-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-6 dark:text-white">AI 应用</h2>

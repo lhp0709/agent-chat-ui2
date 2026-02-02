@@ -116,8 +116,8 @@ export default function HomePage() {
                             <Image
                               src={app.icon_url}
                               alt={`${app.name} 图标`}
-                              width={28}
-                              height={28}
+                              width={40}
+                              height={40}
                               className="object-contain"
                             />
                           ) : (

@@ -1,4 +1,3 @@
-// ai.tsx
 import { parsePartialJson } from "@langchain/core/output_parsers";
 import { useStreamContext } from "@/providers/Stream";
 import { AIMessage, ToolMessage, Checkpoint, Message } from "@langchain/langgraph-sdk";
@@ -7,14 +6,15 @@ import { BranchSwitcher, CommandBar } from "./shared";
 import { MarkdownText } from "../markdown-text";
 import { LoadExternalComponent } from "@langchain/langgraph-sdk/react-ui";
 import { cn } from "@/lib/utils";
-import { ToolCalls, ToolCallWithResultSection } from "./tool-calls";
+import { ToolCalls, ToolResult , ToolCallWithResultSection} from "./tool-calls";
 import { MessageContentComplex } from "@langchain/core/messages";
-import { Fragment, useMemo } from "react";
+import { Fragment } from "react/jsx-runtime";
 import { isAgentInboxInterruptSchema } from "@/lib/agent-inbox-interrupt";
 import { ThreadView } from "../agent-inbox";
 import { useQueryState, parseAsBoolean } from "nuqs";
 import { GenericInterruptView } from "./generic-interrupt";
 import { useArtifact } from "../artifact";
+import { has } from "lodash";
 
 function CustomComponent({
   message,
@@ -137,43 +137,16 @@ export function AssistantMessage({
   const hasAnthropicToolCalls = !!anthropicStreamedToolCalls?.length;
   const isToolResult = message?.type === "tool";
 
-  // 优化：预先构建 toolResults 数组，避免在子组件中重复计算
-  const relevantToolResults = useMemo(() => {
-    if (hideToolCalls) return [];
-    if (!hasToolCalls && !hasAnthropicToolCalls) return [];
-    
-    const currentToolCalls = hasAnthropicToolCalls 
-      ? anthropicStreamedToolCalls 
-      : (message?.type === "ai" ? (message as AIMessage).tool_calls : undefined);
-      
-    if (!currentToolCalls) return [];
-
-    const toolCallIds = new Set(currentToolCalls.map(tc => tc.id).filter(Boolean));
-    
-    return thread.messages.filter(
-      (m): m is ToolMessage => 
-        m.type === "tool" && 
-        !!m.tool_call_id && 
-        toolCallIds.has(m.tool_call_id)
-    );
-  }, [
-    thread.messages, 
-    hideToolCalls, 
-    hasToolCalls, 
-    hasAnthropicToolCalls, 
-    anthropicStreamedToolCalls, 
-    (message?.type === "ai" ? (message as AIMessage).tool_calls : undefined)
-  ]);
-
   if (isToolResult && hideToolCalls) {
     return null;
   }
 
   return (
-    <div className="group mr-auto flex items-start gap-2 w-full">
-      <div className="flex flex-col gap-2 w-full max-w-full">
+    <div className="group mr-auto flex items-start gap-2">
+      <div className="flex flex-col gap-2">
         {isToolResult ? (
           <>
+            {/* <ToolResult message={message} /> */}
             <Interrupt
               interruptValue={threadInterrupt?.value}
               isLastMessage={isLastMessage}
@@ -183,7 +156,7 @@ export function AssistantMessage({
         ) : (
           <>
             {contentString.length > 0 && (
-              <div className="py-1 prose dark:prose-invert max-w-none">
+              <div className="py-1">
                 <MarkdownText>{contentString}</MarkdownText>
               </div>
             )}
@@ -195,7 +168,17 @@ export function AssistantMessage({
                     ? anthropicStreamedToolCalls!
                     : message!.tool_calls!
                 }
-                toolResults={relevantToolResults}
+                toolResults={
+                  thread.messages.filter(
+                    (m): m is ToolMessage => 
+                      m.type === "tool" && 
+                      // 只取那些 tool_call_id 在当前 toolCalls 中的消息
+                      (hasAnthropicToolCalls
+                        ? anthropicStreamedToolCalls!.some(tc => tc.id === m.tool_call_id)
+                        : message!.tool_calls!.some(tc => tc.id === m.tool_call_id)
+                      )
+                  )
+                }
               />
             )}
 

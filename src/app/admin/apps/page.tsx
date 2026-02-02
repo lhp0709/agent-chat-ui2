@@ -254,6 +254,35 @@ export default function AppsPage() {
                     >
                       {assistant.description ? (assistant.description.length > 50 ? `${assistant.description.substring(0, 50)}...` : assistant.description) : '-'}
                     </td>
+                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      <Switch
+                        checked={assistant.in_use === 'active'}
+                        onCheckedChange={() => toggleAssistantStatus(assistant)}
+                        id={`switch-${assistant.id}`}
+                        className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                      >
+                        {/* Track (背景) - 应用 data-[state] 类 */}
+                        <span
+                          className="
+                            absolute inset-0 rounded-full bg-gray-300
+                            transition-colors duration-200 ease-in-out
+                            data-[state=checked]:bg-green-500
+                            dark:bg-gray-600 dark:data-[state=checked]:bg-green-600
+                           "
+                          data-state={assistant.in_use === 'active' ? 'checked' : 'unchecked'}
+                        ></span>
+                        {/* Thumb (滑块) - 应用 data-[state] 类 */}
+                        <span
+                          className="
+                            pointer-events-none relative block h-5 w-5 rounded-full bg-white shadow-lg ring-0
+                            transition-transform duration-200 ease-in-out
+                            data-[state=unchecked]:translate-x-0.5
+                            data-[state=checked]:translate-x-6
+                           "
+                          data-state={assistant.in_use === 'active' ? 'checked' : 'unchecked'}
+                        ></span>
+                      </Switch>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       {new Date(assistant.created_at).toLocaleString()}
                     </td>

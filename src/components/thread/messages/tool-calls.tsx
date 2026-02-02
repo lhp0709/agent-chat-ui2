@@ -1,5 +1,5 @@
 import { AIMessage, ToolMessage } from "@langchain/langgraph-sdk";
-import { useState } from "react";
+import { useState,useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, ChevronUp } from "lucide-react";
 
@@ -29,13 +29,17 @@ export function ToolCallWithResultSection({
       toolResultMap.set(res.tool_call_id, res);
     }
   });
+  // 过滤掉 id 为 null 或 undefined 的 toolCall，并缓存结果
+  const validToolCalls = useMemo(() => {
+    return toolCalls.filter(tc => tc.id != null); // tc.id != null 同时排除了 null 和 undefined
+  }, [toolCalls]);
 
   // 配对
-  const pairedItems: ToolCallWithResult[] = toolCalls.map((tc) => ({
+  const pairedItems: ToolCallWithResult[] = validToolCalls.map((tc) => ({
     toolCall: tc,
     toolResult: tc.id ? toolResultMap.get(tc.id) : undefined,
   }));
-
+  console.log("工具调用情况:",pairedItems)
   return (
     <div className="mx-auto max-w-3xl">
       <button

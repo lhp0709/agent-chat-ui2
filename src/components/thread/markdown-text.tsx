@@ -123,7 +123,7 @@ const defaultComponents: any = {
       className={cn(
         "text-primary font-medium underline underline-offset-4",
         className,
-      )}
+      )} target="_blank" 
       {...props}
     />
   ),

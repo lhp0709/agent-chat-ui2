@@ -101,6 +101,7 @@ const StreamSession = ({
       sleep().then(() => getThreads().then(setThreads).catch(console.error));
     },
   });
+  
 
   useEffect(() => {
     checkGraphStatus(apiUrl, apiKey).then((ok) => {

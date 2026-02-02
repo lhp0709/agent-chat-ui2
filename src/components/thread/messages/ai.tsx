@@ -14,6 +14,7 @@ import { ThreadView } from "../agent-inbox";
 import { useQueryState, parseAsBoolean } from "nuqs";
 import { GenericInterruptView } from "./generic-interrupt";
 import { useArtifact } from "../artifact";
+import { has } from "lodash";
 
 function CustomComponent({
   message,
@@ -160,20 +161,6 @@ export function AssistantMessage({
               </div>
             )}
 
-            {/* {!hideToolCalls && (
-              <>
-                {(hasToolCalls && toolCallsHaveContents && (
-                  <ToolCalls toolCalls={message.tool_calls} />
-                )) ||
-                  (hasAnthropicToolCalls && (
-                    <ToolCalls toolCalls={anthropicStreamedToolCalls} />
-                  )) ||
-                  (hasToolCalls && (
-                    <ToolCalls toolCalls={message.tool_calls} />
-                  ))}
-              </>
-            )} */}
-            {/* 渲染可折叠的工具调用 + 结果组合 */}
             {!hideToolCalls && (hasToolCalls || hasAnthropicToolCalls) && hasToolCalls && (
               <ToolCallWithResultSection
                 toolCalls={

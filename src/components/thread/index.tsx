@@ -49,6 +49,7 @@ import { ContentBlock } from "@/lib/multimodal-utils";
 
 import {checkAuthStatus} from "@/lib/SSO"
 import { useRouter } from 'next/navigation'
+import { useMemo } from 'react';
 
 function StickyToBottomContent(props: {
   content: ReactNode;
@@ -145,6 +146,7 @@ export function Thread() {
 
   const stream = useStreamContext();
   const messages = stream.messages;
+  
   const isLoading = stream.isLoading;
 
   const lastError = useRef<string | undefined>(undefined);

@@ -88,12 +88,12 @@ export default function HomePage() {
                   role="link"
                   tabIndex={0}
                   onClick={() => {
-                    window.location.href = `/chat?assistant_id=${encodeURIComponent(app.ASSISTANT_ID)}`;
+                    window.location.href = `/chat?assistantId=${encodeURIComponent(app.ASSISTANT_ID)}`;
                   }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
-                      window.location.href = `/chat?assistant_id=${encodeURIComponent(app.ASSISTANT_ID)}`;
+                      window.location.href = `/chat?assistantId=${encodeURIComponent(app.ASSISTANT_ID)}`;
                     }
                   }}
                   className="group relative aspect-[2/1] bg-white border border-gray-200 shadow-sm rounded-lg overflow-hidden cursor-pointer dark:bg-gray-800 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"

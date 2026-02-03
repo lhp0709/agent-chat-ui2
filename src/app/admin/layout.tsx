@@ -10,6 +10,7 @@ const menuItems = [
   { name: '用户管理', path: '/admin/users' },
   { name: '应用管理', path: '/admin/apps' },
   { name: '角色权限管理', path: '/admin/permissions' },
+  { name: '知识库管理', path: '/admin/knowledge' },
 ];
 
 // 定义 Layout Props
@@ -23,7 +24,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   return (
     <div className="flex h-[calc(100vh-4rem)] bg-gray-50 dark:bg-gray-900 overflow-hidden">
       {/* 左侧菜单 */}
-      <div className="w-64 bg-white border-r border-gray-200 dark:bg-gray-800 dark:border-gray-700 flex flex-col shrink-0">
+      <div className="w-48 bg-white border-r border-gray-200 dark:bg-gray-800 dark:border-gray-700 flex flex-col shrink-0">
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-semibold text-gray-800 dark:text-white">系统管理</h2>
         </div>
@@ -33,6 +34,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               <li key={item.path}>
                 <Link
                   href={item.path}
+                  onClick={() => {
+                    if (item.path === '/admin/knowledge') {
+                      window.open(`${process.env.NEXT_PUBLIC_RAGFLOW_API_URL}/datasets`, '_blank');
+                    }
+                  }}
                   className={
                     pathname === item.path // 比较当前路径与菜单项路径
                       ? 'block px-4 py-2 text-sm rounded-md bg-blue-100 text-blue-700 dark:bg-blue-600 dark:text-white' // 当前激活样式
@@ -49,7 +55,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
       {/* 右侧内容区域 - 子页面内容将在这里渲染 */}
       <div className="flex-1 p-6 h-full overflow-auto">
-        <div className="bg-white p-6 rounded-lg shadow dark:bg-gray-800 dark:border-gray-700 h-full">
+        <div className="bg-white p-6 rounded-lg shadow dark:bg-gray-800 dark:border-gray-700 min-h-full">
           {children}
         </div>
       </div>

@@ -2,7 +2,7 @@
 import { AIMessage, ToolMessage } from "@langchain/langgraph-sdk";
 import { useState, useMemo, memo, useCallback } from "react";
 import { motion } from "framer-motion";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 const { FixedSizeList: List } = require("react-window");
 import { AutoSizer } from "react-virtualized-auto-sizer";
 
@@ -217,10 +217,9 @@ const ToolCallItem = memo(({
 
   const isLargeContent = contentSize > LARGE_CONTENT_THRESHOLD;
   
-  // 缓存参数条目
-  const argsEntries = useMemo(() => 
-    toolCall.args ? Object.entries(toolCall.args) : [],
-  [toolCall.args]);
+  const argsEntries = toolCall.args ? Object.entries(toolCall.args) : [];
+  const hasArgs = argsEntries.length > 0;
+  const isLoading = !toolResult;
 
   // 结果内容处理
   const resultContent = useMemo(() => {
@@ -273,22 +272,29 @@ const ToolCallItem = memo(({
       </div>
 
       {/* 参数表格 */}
-      {argsEntries.length > 0 && (
+      {(hasArgs || isLoading) && (
         <div className="max-h-48 overflow-y-auto border-b border-gray-200">
-          <table className="min-w-full divide-y divide-gray-200 text-sm">
-            <tbody className="divide-y divide-gray-200">
-              {argsEntries.map(([key, value]) => (
-                <tr key={key} className="hover:bg-gray-50">
-                  <td className="px-4 py-2 font-medium whitespace-nowrap text-gray-900 w-1/4 text-xs uppercase tracking-wider">
-                    {key}
-                  </td>
-                  <td className="px-4 py-2 text-gray-600">
-                    <ValueCell value={value} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {hasArgs ? (
+            <table className="min-w-full divide-y divide-gray-200 text-sm">
+              <tbody className="divide-y divide-gray-200">
+                {argsEntries.map(([key, value]) => (
+                  <tr key={key} className="hover:bg-gray-50">
+                    <td className="px-4 py-2 font-medium whitespace-nowrap text-gray-900 w-1/4 text-xs uppercase tracking-wider">
+                      {key}
+                    </td>
+                    <td className="px-4 py-2 text-gray-600">
+                      <ValueCell value={value} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+             <div className="px-4 py-3 text-xs text-gray-500 italic flex items-center gap-2">
+               <span className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></span>
+               正在接收参数...
+             </div>
+          )}
         </div>
       )}
 
@@ -372,8 +378,12 @@ export const ToolCallWithResultSection = memo(({
 
   const useVirtualization = pairedItems.length > VIRTUALIZATION_THRESHOLD;
 
+  const isExecuting = useMemo(() => {
+    return pairedItems.some(item => !item.toolResult);
+  }, [pairedItems]);
+
   return (
-    <div className="mx-auto max-w-3xl my-2">
+    <div className="w-full my-2">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
         className="w-full flex justify-between items-center px-4 py-2.5 text-left text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-all duration-200 hover:shadow-sm"
@@ -383,7 +393,10 @@ export const ToolCallWithResultSection = memo(({
           <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full">
             {pairedItems.length}
           </span>
-          <span>工具调用</span>
+          <span className={isExecuting ? "animate-pulse font-medium text-blue-700" : ""}>
+            {isExecuting ? "工具执行中..." : "工具调用"}
+          </span>
+          {isExecuting && <Loader2 className="w-3 h-3 animate-spin text-blue-600" />}
         </div>
         <motion.span 
           animate={{ rotate: isExpanded ? 180 : 0 }}
@@ -449,7 +462,7 @@ export function ToolCalls({
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <div className="mx-auto max-w-3xl my-2">
+    <div className="w-full my-2">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
         className="w-full flex justify-between items-center px-4 py-2.5 text-left text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-all duration-200"
@@ -569,7 +582,7 @@ export function ToolResult({ message }: { message: ToolMessage }) {
   }, [contentInfo, isExpanded, message.content]);
 
   return (
-    <div className="mx-auto max-w-3xl my-2">
+    <div className="w-full my-2">
       <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
         <div className="border-b border-gray-200 bg-gray-50 px-4 py-2">
           <div className="flex flex-wrap items-center justify-between gap-2">

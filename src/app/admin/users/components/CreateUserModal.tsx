@@ -27,6 +27,8 @@ export default function CreateUserModal({
   const [loading, setLoading] = useState(false);
   const [fetchingRoles, setFetchingRoles] = useState(false);
 
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
   // 获取可用角色列表
   useEffect(() => {
     if (isOpen) {
@@ -53,6 +55,10 @@ export default function CreateUserModal({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    // 清除对应字段的错误信息
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
   };
 
   const handleRoleToggle = (roleId: number) => {
@@ -65,8 +71,13 @@ export default function CreateUserModal({
 
   const handleSubmit = async () => {
     // 表单验证
-    if (!formData.username.trim() || !formData.real_name.trim() || !formData.email.trim()) {
-      alert('用户名、真实姓名和邮箱不能为空');
+    const newErrors: { [key: string]: string } = {};
+    if (!formData.username.trim()) newErrors.username = '用户名不能为空';
+    if (!formData.real_name.trim()) newErrors.real_name = '真实姓名不能为空';
+    if (!formData.email.trim()) newErrors.email = '邮箱不能为空';
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
 
@@ -102,7 +113,7 @@ export default function CreateUserModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-gray-500/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full dark:bg-gray-800 max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
           <h3 className="text-lg font-medium text-gray-900 dark:text-white">新增用户</h3>
@@ -113,41 +124,50 @@ export default function CreateUserModal({
           <div className="grid grid-cols-1 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">
-                用户名 *
+                用户名 <span className="text-red-500 ml-1">*</span>
               </label>
               <input
                 type="text"
                 name="username"
                 value={formData.username}
                 onChange={handleInputChange}
-                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                className={`block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm dark:bg-gray-700 dark:text-white ${
+                  errors.username ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                }`}
               />
+              {errors.username && <p className="mt-1 text-sm text-red-500">{errors.username}</p>}
             </div>
             
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">
-                真实姓名 *
+                真实姓名 <span className="text-red-500 ml-1">*</span>
               </label>
               <input
                 type="text"
                 name="real_name"
                 value={formData.real_name}
                 onChange={handleInputChange}
-                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                className={`block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm dark:bg-gray-700 dark:text-white ${
+                  errors.real_name ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                }`}
               />
+              {errors.real_name && <p className="mt-1 text-sm text-red-500">{errors.real_name}</p>}
             </div>
             
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">
-                邮箱 *
+                邮箱 <span className="text-red-500 ml-1">*</span>
               </label>
               <input
                 type="email"
                 name="email"
                 value={formData.email}
                 onChange={handleInputChange}
-                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                className={`block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm dark:bg-gray-700 dark:text-white ${
+                  errors.email ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                }`}
               />
+              {errors.email && <p className="mt-1 text-sm text-red-500">{errors.email}</p>}
             </div>
 
             <div>

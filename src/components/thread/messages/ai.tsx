@@ -68,6 +68,45 @@ function parseAnthropicStreamedToolCalls(
   });
 }
 
+function parseStandardStreamedToolCalls(
+  message: AIMessage
+): AIMessage["tool_calls"] | undefined {
+  const chunks = (message as any).tool_call_chunks;
+  if (!chunks || !Array.isArray(chunks) || chunks.length === 0) {
+    return undefined;
+  }
+
+  const toolCallsMap = new Map<number, { name: string; args: string; id: string }>();
+
+  for (const chunk of chunks) {
+    const index = chunk.index ?? 0;
+    if (!toolCallsMap.has(index)) {
+      toolCallsMap.set(index, { name: "", args: "", id: "" });
+    }
+    const current = toolCallsMap.get(index)!;
+    if (chunk.name) current.name += chunk.name;
+    if (chunk.args) current.args += chunk.args;
+    if (chunk.id) current.id += chunk.id;
+  }
+
+  return Array.from(toolCallsMap.values()).map((tc) => {
+    let json: Record<string, any> = {};
+    if (tc.args) {
+      try {
+        json = parsePartialJson(tc.args) ?? {};
+      } catch {
+        // Pass
+      }
+    }
+    return {
+      name: tc.name,
+      id: tc.id,
+      args: json,
+      type: "tool_call",
+    };
+  });
+}
+
 interface InterruptProps {
   interruptValue?: unknown;
   isLastMessage: boolean;
@@ -124,6 +163,13 @@ export function AssistantMessage({
     ? parseAnthropicStreamedToolCalls(content)
     : undefined;
 
+  const hasAnthropicToolCalls = !!anthropicStreamedToolCalls?.length;
+
+  const standardStreamedToolCalls = useMemo(() => {
+    if (hasAnthropicToolCalls || !message || message.type !== "ai") return undefined;
+    return parseStandardStreamedToolCalls(message as AIMessage);
+  }, [message, hasAnthropicToolCalls]);
+
   const hasToolCalls =
     message &&
     "tool_calls" in message &&
@@ -134,7 +180,7 @@ export function AssistantMessage({
     message.tool_calls?.some(
       (tc) => tc.args && Object.keys(tc.args).length > 0,
     );
-  const hasAnthropicToolCalls = !!anthropicStreamedToolCalls?.length;
+  // hasAnthropicToolCalls moved up
   const isToolResult = message?.type === "tool";
 
   // 优化：预先构建 toolResults 数组，避免在子组件中重复计算
@@ -144,7 +190,7 @@ export function AssistantMessage({
     
     const currentToolCalls = hasAnthropicToolCalls 
       ? anthropicStreamedToolCalls 
-      : (message?.type === "ai" ? (message as AIMessage).tool_calls : undefined);
+      : (standardStreamedToolCalls ?? (message?.type === "ai" ? (message as AIMessage).tool_calls : undefined));
       
     if (!currentToolCalls) return [];
 
@@ -162,6 +208,7 @@ export function AssistantMessage({
     hasToolCalls, 
     hasAnthropicToolCalls, 
     anthropicStreamedToolCalls, 
+    standardStreamedToolCalls,
     (message?.type === "ai" ? (message as AIMessage).tool_calls : undefined)
   ]);
 
@@ -193,7 +240,7 @@ export function AssistantMessage({
                 toolCalls={
                   hasAnthropicToolCalls
                     ? anthropicStreamedToolCalls!
-                    : message!.tool_calls!
+                    : (standardStreamedToolCalls ?? message!.tool_calls!)
                 }
                 toolResults={relevantToolResults}
               />

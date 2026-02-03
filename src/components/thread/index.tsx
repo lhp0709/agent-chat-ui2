@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
-import { ReactNode, useEffect, useRef } from "react";
+import { ReactNode, useEffect, useLayoutEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useStreamContext } from "@/providers/Stream";
@@ -56,18 +56,54 @@ function StickyToBottomContent(props: {
   footer?: ReactNode;
   className?: string;
   contentClassName?: string;
+  onReachTop?: () => void;
+  hasMore?: boolean;
+  isLoading?: boolean;
 }) {
   const context = useStickToBottomContext();
+  const { onReachTop, hasMore, isLoading } = props;
+  const prevScrollHeight = useRef<number>(0);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    if (target.scrollTop <= 10 && hasMore && !isHistoryLoading) {
+      setIsHistoryLoading(true);
+      // Add a small delay to show the loading state
+      setTimeout(() => {
+        prevScrollHeight.current = target.scrollHeight;
+        onReachTop?.();
+      }, 800);
+    }
+  };
+
+  useLayoutEffect(() => {
+    if (isHistoryLoading && context.scrollRef.current) {
+      const newScrollHeight = context.scrollRef.current.scrollHeight;
+      const diff = newScrollHeight - prevScrollHeight.current;
+      if (diff > 0) {
+        context.scrollRef.current.scrollTop = diff;
+      }
+      setIsHistoryLoading(false);
+    }
+  }, [props.content, context.scrollRef]);
+
   return (
     <div
       ref={context.scrollRef}
       style={{ width: "100%", height: "100%" }}
       className={props.className}
+      onScroll={handleScroll}
     >
       <div
         ref={context.contentRef}
         className={props.contentClassName}
       >
+        {isHistoryLoading && (
+          <div className="absolute top-2 left-1/2 transform -translate-x-1/2 z-20 bg-white/80 p-1.5 rounded-full shadow-sm border border-gray-100 backdrop-blur-sm">
+            <LoaderCircle className="animate-spin w-4 h-4 text-blue-500" />
+          </div>
+        )}
         {props.content}
       </div>
 
@@ -147,6 +183,34 @@ export function Thread() {
   const stream = useStreamContext();
   const messages = stream.messages;
   
+  const [startIndex, setStartIndex] = useState(-1);
+  
+  const filteredMessages = useMemo(() => 
+     messages.filter((m) => !m.id?.startsWith(DO_NOT_RENDER_ID_PREFIX)), 
+     [messages]
+   );
+ 
+   useLayoutEffect(() => {
+      // Initialize start index only once when messages are loaded
+      if (filteredMessages.length > 0 && startIndex === -1) {
+          setStartIndex(Math.max(0, filteredMessages.length - 3));
+      }
+   }, [filteredMessages.length, startIndex]);
+  
+  useEffect(() => {
+      setStartIndex(-1);
+  }, [threadId]);
+
+  const visibleMessages = startIndex === -1 
+     ? [] 
+     : filteredMessages.slice(startIndex);
+
+  const handleReachTop = () => {
+      if (startIndex > 0) {
+          setStartIndex((prev) => Math.max(0, prev - 10));
+      }
+  };
+
   const isLoading = stream.isLoading;
 
   const lastError = useRef<string | undefined>(undefined);
@@ -416,10 +480,11 @@ export function Thread() {
                 chatStarted && "grid grid-rows-[1fr_auto]",
               )}
               contentClassName="pt-8 pb-16  max-w-3xl mx-auto flex flex-col gap-4 w-full"
+              onReachTop={handleReachTop}
+              hasMore={startIndex > 0}
               content={
                 <>
-                  {messages
-                    .filter((m) => !m.id?.startsWith(DO_NOT_RENDER_ID_PREFIX))
+                  {visibleMessages
                     .map((message, index) =>
                       message.type === "human" ? (
                         <HumanMessage

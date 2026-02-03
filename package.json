@@ -10,7 +10,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "next dev",
+    "dev": "concurrently \"next dev\" \"python python_server/app.py\"",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -72,6 +72,7 @@
     "@types/react-syntax-highlighter": "^15.5.13",
     "@types/uuid": "^10.0.0",
     "autoprefixer": "^10.4.20",
+    "concurrently": "^9.2.1",
     "dotenv": "^16.4.7",
     "eslint": "^9.19.0",
     "eslint-config-next": "15.2.2",

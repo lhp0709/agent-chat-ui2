@@ -3,7 +3,8 @@ import { AIMessage, ToolMessage } from "@langchain/langgraph-sdk";
 import { useState, useMemo, memo, useCallback } from "react";
 import { motion } from "framer-motion";
 import { ChevronDown, ChevronUp, Loader2 } from "lucide-react";
-const { FixedSizeList: List } = require("react-window");
+import * as ReactWindow from "react-window";
+const List = (ReactWindow as any).FixedSizeList;
 import { AutoSizer } from "react-virtualized-auto-sizer";
 
 function isComplexValue(value: any): boolean {
@@ -418,7 +419,7 @@ export const ToolCallWithResultSection = memo(({
         <div className="pt-2">
           {useVirtualization ? (
             <div className="h-[600px] bg-gray-50 rounded-lg border border-gray-200 p-2">
-              {/* @ts-ignore */}
+              {/* @ts-expect-error React-window types mismatch with AutoSizer callback */}
               <AutoSizer>
                 {({ height, width }: { height: number; width: number }): React.ReactNode => (
                   <List
@@ -457,9 +458,9 @@ export function ToolCalls({
 }: {
   toolCalls: AIMessage["tool_calls"];
 }) {
-  if (!toolCalls || toolCalls.length === 0) return null;
-
   const [isExpanded, setIsExpanded] = useState(false);
+
+  if (!toolCalls || toolCalls.length === 0) return null;
 
   return (
     <div className="w-full my-2">

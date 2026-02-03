@@ -8,6 +8,7 @@ interface User {
   id: number;
   username: string;
   real_name?: string;
+  email?: string;
   roles?: { id: number; name: string }[];
 }
 
@@ -128,6 +129,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [user, isLoading, pathname, router]);
 
+  const isPublicPath = ['/login', '/reset-password'].includes(pathname);
+  // 只有在加载完成，并且（已登录 或者 是公开页面）时才显示内容
+  const showContent = !isLoading && (!!user || isPublicPath);
+
   return (
     <AuthContext.Provider value={{ 
       user, 
@@ -136,7 +141,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isAuthenticated: !!user,
       isLoading 
     }}>
-      {!isLoading && children}
+      {showContent ? children : null}
     </AuthContext.Provider>
   );
 };

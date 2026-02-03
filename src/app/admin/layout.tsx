@@ -34,6 +34,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               <li key={item.path}>
                 <Link
                   href={item.path}
+                  prefetch={false}
                   onClick={() => {
                     if (item.path === '/admin/knowledge') {
                       window.open(`${process.env.NEXT_PUBLIC_RAGFLOW_API_URL}/datasets`, '_blank');

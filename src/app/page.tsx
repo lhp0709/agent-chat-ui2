@@ -11,6 +11,7 @@ interface AppItem {
   icon_url: string | null;
 }
 
+
 export default function HomePage() {
   const [apps, setApps] = useState<AppItem[]>([]);
   const [loading, setLoading] = useState(true);

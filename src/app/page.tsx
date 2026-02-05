@@ -3,6 +3,7 @@ import { Bot, Search, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
+import { useAuth } from "@/providers/AuthProvider";
 
 interface AppItem {
   ASSISTANT_ID: string;
@@ -16,18 +17,19 @@ export default function HomePage() {
   const [apps, setApps] = useState<AppItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { user, isLoading: authLoading } = useAuth();
   
-  // 📌 从你的认证系统获取当前用户 ID
-  const currentUserID: string | null = typeof window !== 'undefined' 
-    ? localStorage.getItem('user_id') || 'testuser' 
-    : 'server_side_user';
-
   useEffect(() => {
-    if (!currentUserID) {
-      setError("用户未登录");
+    // 等待认证加载完成
+    if (authLoading) return;
+
+    if (!user) {
+      // 如果未登录，AuthProvider 会处理跳转，这里只需停止加载
       setLoading(false);
       return;
     }
+
+    const currentUserID = user.username;
 
     const fetchAssistants = async () => {
       try {
@@ -52,7 +54,7 @@ export default function HomePage() {
     };
 
     fetchAssistants();
-  }, [currentUserID]);
+  }, [user, authLoading]);
 
   // 处理图标 URL，解决跨平台/localhost 问题
   const getIconUrl = (url: string | null) => {

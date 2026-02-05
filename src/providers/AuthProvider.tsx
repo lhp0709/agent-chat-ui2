@@ -71,6 +71,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = useCallback(() => {
     Cookies.remove(TOKEN_KEY);
     Cookies.remove(USER_KEY);
+    
+    // 清除 LocalStorage 中可能存在的敏感信息，如 API Key
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.removeItem("lg:chat:apiKey");
+        // 如果有其他需要清除的 key，可以在这里添加
+      } catch (e) {
+        console.error("Failed to clear localStorage", e);
+      }
+      
+      try {
+        window.sessionStorage.clear();
+      } catch (e) {
+        console.error("Failed to clear sessionStorage", e);
+      }
+    }
+
     setUser(null);
     router.push('/login');
   }, [router]);

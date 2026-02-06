@@ -24,7 +24,7 @@ JWT_EXPIRATION_HOURS = int(os.getenv('JWT_EXPIRATION_HOURS', 24))
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
-
+api_base_url = os.getenv('NEXT_PUBLIC_API_BASE_URL', 'http://localhost:5000')
 # 初始化CORS，允许所有来源
 CORS(app, resources={
     r"/upload": {"origins": "*"}, 
@@ -164,7 +164,7 @@ def upload_file():
         file_size_bytes = os.path.getsize(filepath)
 
         # 构造返回给客户端的访问URL
-        file_url = f"http://localhost:5000/files/{filename}"
+        file_url = f"{api_base_url}/files/{filename}"
 
         # 返回指定格式的JSON
         return jsonify({

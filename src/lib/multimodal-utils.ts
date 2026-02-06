@@ -32,6 +32,8 @@ export async function fileToContentBlock(
 
   // 首先将文件转换为 Base64
   const base64Data = await fileToBase64(file);
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
+    
 
   try {
     // 创建 FormData 对象来发送文件
@@ -39,7 +41,7 @@ export async function fileToContentBlock(
     formData.append("file", file);
 
     // 发送 POST 请求到服务器
-    const response = await fetch("http://localhost:5000/upload", {
+    const response = await fetch(`${apiBaseUrl}/upload`, {
       method: "POST",
       body: formData,
     });
